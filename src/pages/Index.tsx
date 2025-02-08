@@ -1,6 +1,8 @@
 
 import { useState } from 'react';
+import { toast } from 'sonner';
 import FileUpload from '@/components/FileUpload';
+import { cn } from '@/lib/utils';
 
 const Index = () => {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
@@ -17,7 +19,6 @@ const Index = () => {
     formData.append('docx_file', docxFile);
 
     try {
-      // Replace with your actual API endpoint
       const response = await fetch('/api/upload', {
         method: 'POST',
         body: formData,
