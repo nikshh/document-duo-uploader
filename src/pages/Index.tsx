@@ -3,9 +3,7 @@ import { toast } from 'sonner';
 import FileUpload from '@/components/FileUpload';
 import { cn } from '@/lib/utils';
 
-// Определяем API URL из переменных окружения (NEXT_PUBLIC_API_URL)
-// NEXT_PUBLIC_API_URL можно задать в файле .env.production или аналогичном
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const API_URL = 'http://localhost:5000';
 
 const Index = () => {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
