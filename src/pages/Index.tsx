@@ -22,8 +22,6 @@ const Index = () => {
     const userIdParam = params.get('user_id');
     if (userIdParam) {
       setUserId(userIdParam);
-    } else {
-      toast.error('User ID не найден в URL');
     }
   }, []);
 
@@ -34,7 +32,7 @@ const Index = () => {
     }
 
     if (!userId) {
-      toast.error('User ID не найден. Пожалуйста, проверьте URL');
+      toast.error('Пожалуйста, перейдите в приложение: https://t.me/gpt_answer_bot');
       return;
     }
 
@@ -131,8 +129,28 @@ const Index = () => {
           </p>
         </div>
 
-        {/* Если задача ещё не начата, показываем форму загрузки */}
-        {!jobId ? (
+        {/* Если нет userId, показываем сообщение со ссылкой */}
+        {!userId ? (
+          <div className="text-center my-16">
+            <div className="text-xl mb-6 text-gray-700">
+              Для работы с сервисом необходимо перейти по ссылке:
+            </div>
+            <a 
+              href="https://t.me/gpt_answer_bot" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className={cn(
+                "px-8 py-3 rounded-lg",
+                "bg-blue-500 text-white",
+                "transition-all duration-200",
+                "hover:bg-blue-600",
+                "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              )}
+            >
+              Перейти в Telegram бот
+            </a>
+          </div>
+        ) : !jobId ? (
           <>
             <div className="grid md:grid-cols-2 gap-8">
               <div className="space-y-2">
@@ -199,7 +217,7 @@ const Index = () => {
               onClick={() => {
                 // Добавляем параметр user_id к URL скачивания, если он есть
                 const downloadUrlWithUserId = userId 
-                  ? `${API_URL}${downloadUrl}?user_id=${userId}`
+                  ? `${API_URL}${downloadUrl}`
                   : `${API_URL}${downloadUrl}`;
                 window.open(downloadUrlWithUserId, "_blank");
               }}
