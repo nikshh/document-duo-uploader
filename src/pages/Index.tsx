@@ -172,9 +172,8 @@ const Index = () => {
         {/* Кнопка скачивания обработанного файла */}
         {downloadUrl && (
           <div className="mt-6 text-center">
-            <a
-              href={`${API_URL}${downloadUrl}`}
-              download
+            <button
+              onClick={() => window.open(`${API_URL}${downloadUrl}`, "_blank")}
               className={cn(
                 "px-8 py-3 rounded-lg",
                 "bg-green-600 text-white",
@@ -184,7 +183,7 @@ const Index = () => {
               )}
             >
               Скачать файл
-            </a>
+            </button>
           </div>
         )}
       </div>
