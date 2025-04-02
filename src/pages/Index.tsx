@@ -5,24 +5,31 @@ import { cn } from '@/lib/utils';
 
 const API_URL = 'https://antiplagiat.chatbotiq.ru';
 
+// Функция для получения userId из URL
+const getUserIdFromUrl = () => {
+  if (typeof window !== 'undefined') {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('user_id');
+  }
+  return null;
+};
+
 const Index = () => {
+  // Инициализация userId сразу при создании компонента
+  const [userId, setUserId] = useState<string | null>(getUserIdFromUrl());
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [docxFile, setDocxFile] = useState<File | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
 
   // Новые состояния для отслеживания задач
   const [jobId, setJobId] = useState<string | null>(null);
   const [jobStatus, setJobStatus] = useState<string>('');
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Получение user_id из URL при загрузке страницы
+  // Убедимся, что страница полностью загружена перед отображением интерфейса
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const userIdParam = params.get('user_id');
-    if (userIdParam) {
-      setUserId(userIdParam);
-    }
+    setIsLoading(false);
   }, []);
 
   const handleUpload = async () => {
@@ -120,17 +127,11 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white p-8">
       <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Загрузка документов
-          </h1>
-          <p className="text-gray-600">
-            Загрузите файлы ниже
-          </p>
-        </div>
-
-        {/* Если нет userId, показываем сообщение со ссылкой */}
-        {!userId ? (
+        {isLoading ? (
+          // Пустой контейнер во время загрузки, чтобы избежать мигания
+          <div></div>
+        ) : !userId ? (
+          // Если нет user_id, показываем только ссылку на телеграм бот
           <div className="text-center my-16">
             <div className="text-xl mb-6 text-gray-700">
               Для работы с сервисом необходимо перейти по ссылке:
@@ -150,88 +151,101 @@ const Index = () => {
               Перейти в Telegram бот
             </a>
           </div>
-        ) : !jobId ? (
-          <>
-            <div className="grid md:grid-cols-2 gap-8">
-              <div className="space-y-2">
-                <h3 className="text-lg font-semibold text-gray-700">PDF документ: Полный отчет Antiplagiat</h3>
-                <FileUpload
-                  acceptedFileType="pdf"
-                  onFileSelected={(file) => setPdfFile(file)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <h3 className="text-lg font-semibold text-gray-700">DOCX документ: Ваша работа по которой получен отчет</h3>
-                <FileUpload
-                  acceptedFileType="docx"
-                  onFileSelected={(file) => setDocxFile(file)}
-                />
-              </div>
-            </div>
-
-            <div className="mt-12 text-center">
-              <button
-                onClick={handleUpload}
-                className={cn(
-                  "px-8 py-3 rounded-lg",
-                  "bg-gray-900 text-white",
-                  "transition-all duration-200",
-                  "hover:bg-gray-800",
-                  "focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2",
-                  "disabled:opacity-50 disabled:cursor-not-allowed"
-                )}
-                disabled={!pdfFile || !docxFile || isUploading}
-              >
-                {isUploading ? 'Загрузка...' : 'Загрузить файлы'}
-              </button>
-            </div>
-          </>
         ) : (
-          // Если файлы загружены, отображаем GIF-анимацию
-          <div className="text-center my-8">
-            {
-              !downloadUrl ? (
-                <img src="/gif1.gif" alt="Обработка файлов" className="mx-auto w-[30%]" />
-              ) : (
-                <img src="/gif2.gif" alt="Обработка завершена" className="mx-auto w-[30%]" />
-              )
-            }
-          </div>
-        )}
+          // Если user_id есть, показываем интерфейс загрузки файлов
+          <>
+            <div className="text-center mb-12">
+              <h1 className="text-4xl font-bold text-gray-900 mb-4">
+                Загрузка документов
+              </h1>
+              <p className="text-gray-600">
+                Загрузите файлы ниже
+              </p>
+            </div>
 
-        {/* Отображение статуса задачи */}
-        {jobStatus && (
-          <div className="mt-4 text-center">
-            <p>
-              {" "}
-              <span className="text-gray-600 text-center">{jobStatus}</span>
-            </p>
-          </div>
-        )}
+            {!jobId ? (
+              <>
+                <div className="grid md:grid-cols-2 gap-8">
+                  <div className="space-y-2">
+                    <h3 className="text-lg font-semibold text-gray-700">PDF документ: Полный отчет Antiplagiat</h3>
+                    <FileUpload
+                      acceptedFileType="pdf"
+                      onFileSelected={(file) => setPdfFile(file)}
+                    />
+                  </div>
 
-        {/* Кнопка скачивания обработанного файла */}
-        {downloadUrl && (
-          <div className="mt-6 text-center">
-            <button
-              onClick={() => {
-                // Добавляем параметр user_id к URL скачивания, если он есть
-                const downloadUrlWithUserId = userId 
-                  ? `${API_URL}${downloadUrl}`
-                  : `${API_URL}${downloadUrl}`;
-                window.open(downloadUrlWithUserId, "_blank");
-              }}
-              className={cn(
-                "px-8 py-3 rounded-lg",
-                "bg-green-600 text-white",
-                "transition-all duration-200",
-                "hover:bg-green-500",
-                "focus:outline-none focus:ring-2 focus:ring-green-600 focus:ring-offset-2"
-              )}
-            >
-              Скачать файл
-            </button>
-          </div>
+                  <div className="space-y-2">
+                    <h3 className="text-lg font-semibold text-gray-700">DOCX документ: Ваша работа по которой получен отчет</h3>
+                    <FileUpload
+                      acceptedFileType="docx"
+                      onFileSelected={(file) => setDocxFile(file)}
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-12 text-center">
+                  <button
+                    onClick={handleUpload}
+                    className={cn(
+                      "px-8 py-3 rounded-lg",
+                      "bg-gray-900 text-white",
+                      "transition-all duration-200",
+                      "hover:bg-gray-800",
+                      "focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2",
+                      "disabled:opacity-50 disabled:cursor-not-allowed"
+                    )}
+                    disabled={!pdfFile || !docxFile || isUploading}
+                  >
+                    {isUploading ? 'Загрузка...' : 'Загрузить файлы'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              // Если файлы загружены, отображаем GIF-анимацию
+              <div className="text-center my-8">
+                {
+                  !downloadUrl ? (
+                    <img src="/gif1.gif" alt="Обработка файлов" className="mx-auto w-[30%]" />
+                  ) : (
+                    <img src="/gif2.gif" alt="Обработка завершена" className="mx-auto w-[30%]" />
+                  )
+                }
+              </div>
+            )}
+
+            {/* Отображение статуса задачи */}
+            {jobStatus && (
+              <div className="mt-4 text-center">
+                <p>
+                  {" "}
+                  <span className="text-gray-600 text-center">{jobStatus}</span>
+                </p>
+              </div>
+            )}
+
+            {/* Кнопка скачивания обработанного файла */}
+            {downloadUrl && (
+              <div className="mt-6 text-center">
+                <button
+                  onClick={() => {
+                    const downloadUrlWithUserId = userId 
+                      ? `${API_URL}${downloadUrl}`
+                      : `${API_URL}${downloadUrl}`;
+                    window.open(downloadUrlWithUserId, "_blank");
+                  }}
+                  className={cn(
+                    "px-8 py-3 rounded-lg",
+                    "bg-green-600 text-white",
+                    "transition-all duration-200",
+                    "hover:bg-green-500",
+                    "focus:outline-none focus:ring-2 focus:ring-green-600 focus:ring-offset-2"
+                  )}
+                >
+                  Скачать файл
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
