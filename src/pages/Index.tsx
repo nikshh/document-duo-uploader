@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import FileUpload from '@/components/FileUpload';
 import { cn } from '@/lib/utils';
@@ -8,6 +8,7 @@ const API_URL = 'https://antiplagiat.chatbotiq.ru';
 const Index = () => {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [docxFile, setDocxFile] = useState<File | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
 
   // Новые состояния для отслеживания задач
   const [jobId, setJobId] = useState<string | null>(null);
@@ -15,9 +16,25 @@ const Index = () => {
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState<boolean>(false);
 
+  // Получение user_id из URL при загрузке страницы
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const userIdParam = params.get('user_id');
+    if (userIdParam) {
+      setUserId(userIdParam);
+    } else {
+      toast.error('User ID не найден в URL');
+    }
+  }, []);
+
   const handleUpload = async () => {
     if (!pdfFile || !docxFile) {
       toast.error('Пожалуйста, загрузите оба файла: PDF и DOCX');
+      return;
+    }
+
+    if (!userId) {
+      toast.error('User ID не найден. Пожалуйста, проверьте URL');
       return;
     }
 
@@ -25,6 +42,7 @@ const Index = () => {
     const formData = new FormData();
     formData.append('pdf_file', pdfFile);
     formData.append('docx_file', docxFile);
+    formData.append('user_id', userId);
 
     try {
       const response = await fetch(`/upload`, {
@@ -68,7 +86,12 @@ const Index = () => {
 
     const intervalId = setInterval(async () => {
       try {
-        const response = await fetch(`${API_URL}/status/${jobId}`);
+        // Добавляем параметр user_id в запрос статуса
+        const statusUrl = userId 
+          ? `${API_URL}/status/${jobId}?user_id=${userId}`
+          : `${API_URL}/status/${jobId}`;
+        
+        const response = await fetch(statusUrl);
         if (response.ok) {
           const data = await response.json();
           if (data.status === 'processing') {
@@ -173,7 +196,13 @@ const Index = () => {
         {downloadUrl && (
           <div className="mt-6 text-center">
             <button
-              onClick={() => window.open(`${API_URL}${downloadUrl}`, "_blank")}
+              onClick={() => {
+                // Добавляем параметр user_id к URL скачивания, если он есть
+                const downloadUrlWithUserId = userId 
+                  ? `${API_URL}${downloadUrl}?user_id=${userId}`
+                  : `${API_URL}${downloadUrl}`;
+                window.open(downloadUrlWithUserId, "_blank");
+              }}
               className={cn(
                 "px-8 py-3 rounded-lg",
                 "bg-green-600 text-white",
