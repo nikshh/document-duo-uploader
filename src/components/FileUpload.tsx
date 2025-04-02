@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Upload, File, CheckCircle2, XCircle } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
@@ -49,12 +48,12 @@ const FileUpload: React.FC<FileUploadProps> = ({ acceptedFileType, onFileSelecte
       {...getRootProps()}
       className={cn(
         "relative group cursor-pointer",
-        "border-2 border-dashed rounded-xl p-8",
+        "border-2 border-dashed rounded-xl py-4 px-8",
         "transition-all duration-300 ease-in-out",
         "hover:border-gray-400",
         isDragActive ? "border-gray-400 bg-gray-50" : "border-gray-200",
         "flex flex-col items-center justify-center gap-4",
-        "min-h-[200px]"
+        "min-h-[100px]"
       )}
     >
       <input {...getInputProps()} />

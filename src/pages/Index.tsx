@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import FileUpload from '@/components/FileUpload';
 import { cn } from '@/lib/utils';
 
-const API_URL = 'http://localhost:5000';
+const API_URL = 'https://antiplagiat.chatbotiq.ru';
 
 const Index = () => {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
@@ -27,7 +27,7 @@ const Index = () => {
     formData.append('docx_file', docxFile);
 
     try {
-      const response = await fetch(`${API_URL}/upload`, {
+      const response = await fetch(`/upload`, {
         method: 'POST',
         mode: 'cors',
         headers: {
@@ -40,9 +40,10 @@ const Index = () => {
         const data = await response.json();
         const newJobId = data.job_id;
         setJobId(newJobId);
-        setJobStatus('processing');
+        // Вместо статичного 'processing' устанавливаем динамическое сообщение
+        setJobStatus('Начало обработки...');
         toast.success('Файлы успешно загружены. Обработка в процессе.');
-        // Начинаем опрос статуса задачи
+        // Начинаем опрос статуса задачи с динамическими сообщениями
         pollJobStatus(newJobId);
       } else {
         throw new Error('Ошибка загрузки');
@@ -55,19 +56,32 @@ const Index = () => {
     }
   };
 
-  // Функция для опроса статуса задачи
+  // Функция для опроса статуса задачи с динамическими сообщениями во время обработки
   const pollJobStatus = (jobId: string) => {
+    let counter = 0;
+    const processingMessages = [
+      "Обработка файлов...",
+      "Подождите, файлы обрабатываются...",
+      "Ещё немного...",
+      "Процесс идёт..."
+    ];
+
     const intervalId = setInterval(async () => {
       try {
         const response = await fetch(`${API_URL}/status/${jobId}`);
         if (response.ok) {
           const data = await response.json();
-          setJobStatus(data.status);
-          if (data.status === 'completed') {
+          if (data.status === 'processing') {
+            // Меняем сообщение динамически
+            setJobStatus(processingMessages[counter % processingMessages.length]);
+            counter++;
+          } else if (data.status === 'completed') {
+            setJobStatus('Обработка завершена');
             setDownloadUrl(data.download_url);
             toast.success('Обработка завершена! Файл готов к скачиванию.');
             clearInterval(intervalId);
           } else if (data.status === 'failed') {
+            setJobStatus('Ошибка обработки');
             toast.error(`Обработка завершилась с ошибкой: ${data.error}`);
             clearInterval(intervalId);
           }
@@ -90,51 +104,67 @@ const Index = () => {
             Загрузка документов
           </h1>
           <p className="text-gray-600">
-            Загрузите ваши PDF и DOCX файлы ниже
+            Загрузите файлы ниже
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-8">
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold text-gray-700">PDF документ</h2>
-            <FileUpload
-              acceptedFileType="pdf"
-              onFileSelected={(file) => setPdfFile(file)}
-            />
-          </div>
+        {/* Если задача ещё не начата, показываем форму загрузки */}
+        {!jobId ? (
+          <>
+            <div className="grid md:grid-cols-2 gap-8">
+              <div className="space-y-2">
+                <h3 className="text-lg font-semibold text-gray-700">PDF документ: Полный отчет Antiplagiat</h3>
+                <FileUpload
+                  acceptedFileType="pdf"
+                  onFileSelected={(file) => setPdfFile(file)}
+                />
+              </div>
 
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold text-gray-700">DOCX документ</h2>
-            <FileUpload
-              acceptedFileType="docx"
-              onFileSelected={(file) => setDocxFile(file)}
-            />
-          </div>
-        </div>
+              <div className="space-y-2">
+                <h3 className="text-lg font-semibold text-gray-700">DOCX документ: Ваша работа по которой получен отчет</h3>
+                <FileUpload
+                  acceptedFileType="docx"
+                  onFileSelected={(file) => setDocxFile(file)}
+                />
+              </div>
+            </div>
 
-        <div className="mt-12 text-center">
-          <button
-            onClick={handleUpload}
-            className={cn(
-              "px-8 py-3 rounded-lg",
-              "bg-gray-900 text-white",
-              "transition-all duration-200",
-              "hover:bg-gray-800",
-              "focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2",
-              "disabled:opacity-50 disabled:cursor-not-allowed"
-            )}
-            disabled={!pdfFile || !docxFile || isUploading}
-          >
-            {isUploading ? 'Загрузка...' : 'Загрузить файлы'}
-          </button>
-        </div>
+            <div className="mt-12 text-center">
+              <button
+                onClick={handleUpload}
+                className={cn(
+                  "px-8 py-3 rounded-lg",
+                  "bg-gray-900 text-white",
+                  "transition-all duration-200",
+                  "hover:bg-gray-800",
+                  "focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2",
+                  "disabled:opacity-50 disabled:cursor-not-allowed"
+                )}
+                disabled={!pdfFile || !docxFile || isUploading}
+              >
+                {isUploading ? 'Загрузка...' : 'Загрузить файлы'}
+              </button>
+            </div>
+          </>
+        ) : (
+          // Если файлы загружены, отображаем GIF-анимацию
+          <div className="text-center my-8">
+            {
+              !downloadUrl ? (
+                <img src="/gif1.gif" alt="Обработка файлов" className="mx-auto w-[30%]" />
+              ) : (
+                <img src="/gif2.gif" alt="Обработка завершена" className="mx-auto w-[30%]" />
+              )
+            }
+          </div>
+        )}
 
         {/* Отображение статуса задачи */}
         {jobStatus && (
           <div className="mt-4 text-center">
             <p>
-              Статус задачи:{" "}
-              <span className="font-semibold">{jobStatus}</span>
+              {" "}
+              <span className="text-gray-600 text-center">{jobStatus}</span>
             </p>
           </div>
         )}
@@ -153,7 +183,7 @@ const Index = () => {
                 "focus:outline-none focus:ring-2 focus:ring-green-600 focus:ring-offset-2"
               )}
             >
-              Скачать обработанный файл
+              Скачать файл
             </a>
           </div>
         )}
