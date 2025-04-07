@@ -1,7 +1,10 @@
+
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import FileUpload from '@/components/FileUpload';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Download } from 'lucide-react';
 
 const API_URL = 'https://antiplagiat.chatbotiq.ru';
 
@@ -30,7 +33,14 @@ const Index = () => {
   // Убедимся, что страница полностью загружена перед отображением интерфейса
   useEffect(() => {
     setIsLoading(false);
+    // Отладка для проверки состояния downloadUrl
+    console.log('Initial downloadUrl state:', downloadUrl);
   }, []);
+
+  // Добавим эффект для отслеживания изменений в downloadUrl
+  useEffect(() => {
+    console.log('downloadUrl changed:', downloadUrl);
+  }, [downloadUrl]);
 
   const handleUpload = async () => {
     if (!pdfFile || !docxFile) {
@@ -96,15 +106,20 @@ const Index = () => {
           ? `${API_URL}/status/${jobId}?user_id=${userId}`
           : `${API_URL}/status/${jobId}`;
         
+        console.log('Checking status at URL:', statusUrl);
         const response = await fetch(statusUrl);
         if (response.ok) {
           const data = await response.json();
+          console.log('Received status data:', data);
+          
           if (data.status === 'processing') {
             // Меняем сообщение динамически
             setJobStatus(processingMessages[counter % processingMessages.length]);
             counter++;
           } else if (data.status === 'completed') {
             setJobStatus('Обработка завершена');
+            // Убедимся, что download_url приходит и правильно устанавливается
+            console.log('Setting download URL to:', data.download_url);
             setDownloadUrl(data.download_url);
             toast.success('Обработка завершена! Файл готов к скачиванию.');
             clearInterval(intervalId);
@@ -114,6 +129,7 @@ const Index = () => {
             clearInterval(intervalId);
           }
         } else {
+          console.error('Error response from status API:', response.status);
           toast.error('Не удалось получить статус задачи');
           clearInterval(intervalId);
         }
@@ -122,6 +138,18 @@ const Index = () => {
         clearInterval(intervalId);
       }
     }, 2000);
+  };
+
+  // Функция для скачивания файла
+  const handleDownload = () => {
+    if (!downloadUrl) return;
+    
+    const downloadUrlWithUserId = userId 
+      ? `${API_URL}${downloadUrl}${downloadUrl.includes('?') ? '&' : '?'}user_id=${userId}`
+      : `${API_URL}${downloadUrl}`;
+    
+    console.log('Opening download URL:', downloadUrlWithUserId);
+    window.open(downloadUrlWithUserId, "_blank");
   };
 
   return (
@@ -217,32 +245,27 @@ const Index = () => {
             {jobStatus && (
               <div className="mt-4 text-center">
                 <p>
-                  {" "}
                   <span className="text-gray-600 text-center">{jobStatus}</span>
+                </p>
+                {/* Отладочная информация */}
+                <p className="text-xs text-gray-400 mt-1">
+                  downloadUrl: {downloadUrl ? 'имеется' : 'отсутствует'}
                 </p>
               </div>
             )}
 
-            {/* Кнопка скачивания обработанного файла */}
+            {/* Кнопка скачивания обработанного файла - используем компонент Button из shadcn/ui */}
             {downloadUrl && (
               <div className="mt-6 text-center">
-                <button
-                  onClick={() => {
-                    const downloadUrlWithUserId = userId 
-                      ? `${API_URL}${downloadUrl}`
-                      : `${API_URL}${downloadUrl}`;
-                    window.open(downloadUrlWithUserId, "_blank");
-                  }}
-                  className={cn(
-                    "px-8 py-3 rounded-lg",
-                    "bg-green-600 text-white",
-                    "transition-all duration-200",
-                    "hover:bg-green-500",
-                    "focus:outline-none focus:ring-2 focus:ring-green-600 focus:ring-offset-2"
-                  )}
+                <Button
+                  onClick={handleDownload}
+                  variant="default"
+                  size="lg"
+                  className="bg-green-600 hover:bg-green-500"
                 >
+                  <Download className="mr-2" />
                   Скачать файл
-                </button>
+                </Button>
               </div>
             )}
           </>
