@@ -42,8 +42,8 @@ const DocumentUploader = ({ userId }: DocumentUploaderProps) => {
       setUploadProgress(0);
       
       const formData = new FormData();
-      formData.append('pdf', pdfFile);
-      formData.append('docx', docxFile);
+      formData.append('pdf_file', pdfFile); // Changed from 'pdf' to 'pdf_file' to match backend
+      formData.append('docx_file', docxFile); // Changed from 'docx' to 'docx_file' to match backend
       
       // Добавляем user_id если он есть
       if (userId) {
@@ -52,6 +52,9 @@ const DocumentUploader = ({ userId }: DocumentUploaderProps) => {
 
       // Создаем URL для загрузки
       const uploadUrl = `${API_URL}/upload`;
+      
+      console.log('Sending files to:', uploadUrl);
+      console.log('FormData keys:', [...formData.keys()]);
       
       const response = await fetch(uploadUrl, {
         method: 'POST',
@@ -71,10 +74,13 @@ const DocumentUploader = ({ userId }: DocumentUploaderProps) => {
       }, 300);
 
       if (!response.ok) {
-        throw new Error(`Ошибка при загрузке: ${response.status}`);
+        const errorText = await response.text();
+        console.error('Upload error response:', errorText);
+        throw new Error(`Ошибка при загрузке: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
+      console.log('Upload response data:', data);
       
       // Завершаем прогресс загрузки
       clearInterval(simulateProgress);
@@ -122,12 +128,21 @@ const DocumentUploader = ({ userId }: DocumentUploaderProps) => {
             counter++;
           } else if (data.status === 'completed') {
             setJobStatus('Обработка завершена');
-            console.log('Setting download URL to:', data.download_url);
-            setDownloadUrl(data.download_url);
-            toast.success('Обработка завершена! Файл готов к скачиванию.');
+            setIsProcessing(false);
+            
+            if (data.download_url) {
+              console.log('Setting download URL to:', data.download_url);
+              setDownloadUrl(data.download_url);
+              toast.success('Обработка завершена! Файл готов к скачиванию.');
+            } else {
+              console.error('No download URL in completed response', data);
+              toast.error('Ошибка: Не получена ссылка для скачивания результата');
+            }
+            
             clearInterval(intervalId);
           } else if (data.status === 'failed') {
             setJobStatus('Ошибка при обработке файлов');
+            setIsProcessing(false);
             toast.error('Ошибка при обработке файлов');
             clearInterval(intervalId);
           }
@@ -137,6 +152,7 @@ const DocumentUploader = ({ userId }: DocumentUploaderProps) => {
           clearInterval(intervalId);
         }
       } catch (error) {
+        console.error('Status check error:', error);
         toast.error('Ошибка при проверке статуса задачи');
         clearInterval(intervalId);
       }
@@ -145,14 +161,22 @@ const DocumentUploader = ({ userId }: DocumentUploaderProps) => {
 
   // Функция для скачивания файла
   const handleDownload = () => {
-    if (!downloadUrl) return;
+    if (!downloadUrl) {
+      console.error('Attempted to download with empty URL');
+      toast.error('Ошибка: Ссылка для скачивания отсутствует');
+      return;
+    }
     
-    const downloadUrlWithUserId = userId 
-      ? `${API_URL}${downloadUrl}${downloadUrl.includes('?') ? '&' : '?'}user_id=${userId}`
+    const fullDownloadUrl = downloadUrl.startsWith('http') 
+      ? downloadUrl 
       : `${API_URL}${downloadUrl}`;
+      
+    const urlWithUserId = userId 
+      ? `${fullDownloadUrl}${fullDownloadUrl.includes('?') ? '&' : '?'}user_id=${userId}`
+      : fullDownloadUrl;
     
-    console.log('Opening download URL:', downloadUrlWithUserId);
-    window.open(downloadUrlWithUserId, "_blank");
+    console.log('Opening download URL:', urlWithUserId);
+    window.open(urlWithUserId, "_blank");
   };
 
   return (
@@ -203,7 +227,7 @@ const DocumentUploader = ({ userId }: DocumentUploaderProps) => {
       )}
 
       {/* Processing Status */}
-      {jobStatus && (
+      {(isProcessing || jobStatus) && (
         <div className="mt-4 text-center">
           <p>
             <span className="text-gray-600 text-center">{jobStatus}</span>
@@ -212,7 +236,7 @@ const DocumentUploader = ({ userId }: DocumentUploaderProps) => {
       )}
 
       {/* Download Button */}
-      {downloadUrl && (
+      {downloadUrl && !isProcessing && (
         <div className="mt-6 text-center">
           <Button
             onClick={handleDownload}
