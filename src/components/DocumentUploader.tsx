@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -186,7 +185,7 @@ const DocumentUploader = ({ userId }: DocumentUploaderProps) => {
         <img 
           src="/telegram-utya-telegram-duck.gif" 
           alt="Processing animation" 
-          className="mx-auto h-64 w-64 object-contain mb-6"
+          className="mx-auto h-44 w-44 object-contain mb-6" // Reduced from h-64 w-64 to h-44 w-44 (~30% reduction)
         />
         <h2 className="text-xl font-semibold mb-2">Обработка документов</h2>
         <p className="text-gray-600 mb-4">{jobStatus}</p>
@@ -201,7 +200,7 @@ const DocumentUploader = ({ userId }: DocumentUploaderProps) => {
         <img 
           src="/utya-utya-duck.gif" 
           alt="Completion animation" 
-          className="mx-auto h-64 w-64 object-contain mb-6"
+          className="mx-auto h-44 w-44 object-contain mb-6" // Reduced from h-64 w-64 to h-44 w-44 (~30% reduction)
         />
         <h2 className="text-xl font-semibold mb-2">Обработка завершена!</h2>
         <p className="text-gray-600 mb-4">Ваши документы были обработаны и готовы к скачиванию.</p>
