@@ -42,8 +42,8 @@ const DocumentUploader = ({ userId }: DocumentUploaderProps) => {
       setUploadProgress(0);
       
       const formData = new FormData();
-      formData.append('pdf_file', pdfFile); // Changed from 'pdf' to 'pdf_file' to match backend
-      formData.append('docx_file', docxFile); // Changed from 'docx' to 'docx_file' to match backend
+      formData.append('pdf_file', pdfFile);
+      formData.append('docx_file', docxFile);
       
       // Добавляем user_id если он есть
       if (userId) {
@@ -179,6 +179,46 @@ const DocumentUploader = ({ userId }: DocumentUploaderProps) => {
     window.open(urlWithUserId, "_blank");
   };
 
+  // Show processing animation when files are uploaded and being processed
+  if (isProcessing) {
+    return (
+      <div className="max-w-4xl mx-auto p-4 text-center">
+        <img 
+          src="/telegram-utya-telegram-duck.gif" 
+          alt="Processing animation" 
+          className="mx-auto h-64 w-64 object-contain mb-6"
+        />
+        <h2 className="text-xl font-semibold mb-2">Обработка документов</h2>
+        <p className="text-gray-600 mb-4">{jobStatus}</p>
+      </div>
+    );
+  }
+  
+  // Show completion animation when processing is complete and download is available
+  if (downloadUrl) {
+    return (
+      <div className="max-w-4xl mx-auto p-4 text-center">
+        <img 
+          src="/utya-utya-duck.gif" 
+          alt="Completion animation" 
+          className="mx-auto h-64 w-64 object-contain mb-6"
+        />
+        <h2 className="text-xl font-semibold mb-2">Обработка завершена!</h2>
+        <p className="text-gray-600 mb-4">Ваши документы были обработаны и готовы к скачиванию.</p>
+        <Button
+          onClick={handleDownload}
+          variant="default"
+          size="lg"
+          className="bg-green-600 hover:bg-green-500"
+        >
+          <Download className="mr-2" />
+          Скачать файл
+        </Button>
+      </div>
+    );
+  }
+
+  // Default upload interface
   return (
     <div className="max-w-4xl mx-auto p-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -205,16 +245,16 @@ const DocumentUploader = ({ userId }: DocumentUploaderProps) => {
       <div className="mt-8 text-center">
         <Button
           onClick={handleUpload}
-          disabled={isUploading || isProcessing || !pdfFile || !docxFile}
+          disabled={isUploading || !pdfFile || !docxFile}
           className={cn(
             "px-8 py-3 rounded-lg",
             "transition-all duration-200",
             "w-full md:w-auto",
-            (isUploading || isProcessing) ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-500"
+            isUploading ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-500"
           )}
           size="lg"
         >
-          {isUploading ? 'Загрузка...' : isProcessing ? 'Обработка...' : 'Загрузить файлы'}
+          {isUploading ? 'Загрузка...' : 'Загрузить файлы'}
         </Button>
       </div>
 
@@ -223,30 +263,6 @@ const DocumentUploader = ({ userId }: DocumentUploaderProps) => {
         <div className="mt-4">
           <Progress value={uploadProgress} className="h-2" />
           <p className="text-xs text-gray-500 text-center mt-1">{uploadProgress}%</p>
-        </div>
-      )}
-
-      {/* Processing Status */}
-      {(isProcessing || jobStatus) && (
-        <div className="mt-4 text-center">
-          <p>
-            <span className="text-gray-600 text-center">{jobStatus}</span>
-          </p>
-        </div>
-      )}
-
-      {/* Download Button */}
-      {downloadUrl && !isProcessing && (
-        <div className="mt-6 text-center">
-          <Button
-            onClick={handleDownload}
-            variant="default"
-            size="lg"
-            className="bg-green-600 hover:bg-green-500"
-          >
-            <Download className="mr-2" />
-            Скачать файл
-          </Button>
         </div>
       )}
     </div>
