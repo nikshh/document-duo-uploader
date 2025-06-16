@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -42,8 +41,8 @@ const DocumentUploader = ({ userId }: DocumentUploaderProps) => {
       setUploadProgress(0);
       
       const formData = new FormData();
-      formData.append('pdf', pdfFile);
-      formData.append('docx', docxFile);
+      formData.append('pdf_file', pdfFile);
+      formData.append('docx_file', docxFile);
       
       // Добавляем user_id если он есть
       if (userId) {
@@ -52,6 +51,9 @@ const DocumentUploader = ({ userId }: DocumentUploaderProps) => {
 
       // Создаем URL для загрузки
       const uploadUrl = `${API_URL}/upload`;
+      
+      console.log('Sending files to:', uploadUrl);
+      console.log('FormData keys:', [...formData.keys()]);
       
       const response = await fetch(uploadUrl, {
         method: 'POST',
@@ -71,10 +73,13 @@ const DocumentUploader = ({ userId }: DocumentUploaderProps) => {
       }, 300);
 
       if (!response.ok) {
-        throw new Error(`Ошибка при загрузке: ${response.status}`);
+        const errorText = await response.text();
+        console.error('Upload error response:', errorText);
+        throw new Error(`Ошибка при загрузке: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
+      console.log('Upload response data:', data);
       
       // Завершаем прогресс загрузки
       clearInterval(simulateProgress);
@@ -122,12 +127,21 @@ const DocumentUploader = ({ userId }: DocumentUploaderProps) => {
             counter++;
           } else if (data.status === 'completed') {
             setJobStatus('Обработка завершена');
-            console.log('Setting download URL to:', data.download_url);
-            setDownloadUrl(data.download_url);
-            toast.success('Обработка завершена! Файл готов к скачиванию.');
+            setIsProcessing(false);
+            
+            if (data.download_url) {
+              console.log('Setting download URL to:', data.download_url);
+              setDownloadUrl(data.download_url);
+              toast.success('Обработка завершена! Файл готов к скачиванию.');
+            } else {
+              console.error('No download URL in completed response', data);
+              toast.error('Ошибка: Не получена ссылка для скачивания результата');
+            }
+            
             clearInterval(intervalId);
           } else if (data.status === 'failed') {
             setJobStatus('Ошибка при обработке файлов');
+            setIsProcessing(false);
             toast.error('Ошибка при обработке файлов');
             clearInterval(intervalId);
           }
@@ -137,6 +151,7 @@ const DocumentUploader = ({ userId }: DocumentUploaderProps) => {
           clearInterval(intervalId);
         }
       } catch (error) {
+        console.error('Status check error:', error);
         toast.error('Ошибка при проверке статуса задачи');
         clearInterval(intervalId);
       }
@@ -145,16 +160,64 @@ const DocumentUploader = ({ userId }: DocumentUploaderProps) => {
 
   // Функция для скачивания файла
   const handleDownload = () => {
-    if (!downloadUrl) return;
+    if (!downloadUrl) {
+      console.error('Attempted to download with empty URL');
+      toast.error('Ошибка: Ссылка для скачивания отсутствует');
+      return;
+    }
     
-    const downloadUrlWithUserId = userId 
-      ? `${API_URL}${downloadUrl}${downloadUrl.includes('?') ? '&' : '?'}user_id=${userId}`
+    const fullDownloadUrl = downloadUrl.startsWith('http') 
+      ? downloadUrl 
       : `${API_URL}${downloadUrl}`;
+      
+    const urlWithUserId = userId 
+      ? `${fullDownloadUrl}${fullDownloadUrl.includes('?') ? '&' : '?'}user_id=${userId}`
+      : fullDownloadUrl;
     
-    console.log('Opening download URL:', downloadUrlWithUserId);
-    window.open(downloadUrlWithUserId, "_blank");
+    console.log('Opening download URL:', urlWithUserId);
+    window.open(urlWithUserId, "_blank");
   };
 
+  // Show processing animation when files are uploaded and being processed
+  if (isProcessing) {
+    return (
+      <div className="max-w-4xl mx-auto p-4 text-center">
+        <img 
+          src="/telegram-utya-telegram-duck.gif" 
+          alt="Processing animation" 
+          className="mx-auto h-44 w-44 object-contain mb-6" // Reduced from h-64 w-64 to h-44 w-44 (~30% reduction)
+        />
+        <h2 className="text-xl font-semibold mb-2">Обработка документов</h2>
+        <p className="text-gray-600 mb-4">{jobStatus}</p>
+      </div>
+    );
+  }
+  
+  // Show completion animation when processing is complete and download is available
+  if (downloadUrl) {
+    return (
+      <div className="max-w-4xl mx-auto p-4 text-center">
+        <img 
+          src="/utya-utya-duck.gif" 
+          alt="Completion animation" 
+          className="mx-auto h-44 w-44 object-contain mb-6" // Reduced from h-64 w-64 to h-44 w-44 (~30% reduction)
+        />
+        <h2 className="text-xl font-semibold mb-2">Обработка завершена!</h2>
+        <p className="text-gray-600 mb-4">Ваши документы были обработаны и готовы к скачиванию.</p>
+        <Button
+          onClick={handleDownload}
+          variant="default"
+          size="lg"
+          className="bg-green-600 hover:bg-green-500"
+        >
+          <Download className="mr-2" />
+          Скачать файл
+        </Button>
+      </div>
+    );
+  }
+
+  // Default upload interface
   return (
     <div className="max-w-4xl mx-auto p-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -181,16 +244,16 @@ const DocumentUploader = ({ userId }: DocumentUploaderProps) => {
       <div className="mt-8 text-center">
         <Button
           onClick={handleUpload}
-          disabled={isUploading || isProcessing || !pdfFile || !docxFile}
+          disabled={isUploading || !pdfFile || !docxFile}
           className={cn(
             "px-8 py-3 rounded-lg",
             "transition-all duration-200",
             "w-full md:w-auto",
-            (isUploading || isProcessing) ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-500"
+            isUploading ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-500"
           )}
           size="lg"
         >
-          {isUploading ? 'Загрузка...' : isProcessing ? 'Обработка...' : 'Загрузить файлы'}
+          {isUploading ? 'Загрузка...' : 'Загрузить файлы'}
         </Button>
       </div>
 
@@ -199,30 +262,6 @@ const DocumentUploader = ({ userId }: DocumentUploaderProps) => {
         <div className="mt-4">
           <Progress value={uploadProgress} className="h-2" />
           <p className="text-xs text-gray-500 text-center mt-1">{uploadProgress}%</p>
-        </div>
-      )}
-
-      {/* Processing Status */}
-      {jobStatus && (
-        <div className="mt-4 text-center">
-          <p>
-            <span className="text-gray-600 text-center">{jobStatus}</span>
-          </p>
-        </div>
-      )}
-
-      {/* Download Button */}
-      {downloadUrl && (
-        <div className="mt-6 text-center">
-          <Button
-            onClick={handleDownload}
-            variant="default"
-            size="lg"
-            className="bg-green-600 hover:bg-green-500"
-          >
-            <Download className="mr-2" />
-            Скачать файл
-          </Button>
         </div>
       )}
     </div>
